@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceSage - Gestion des Finances Personnelles</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --light-bg: #f3f4f6;
+            --dark-text: #1f2937;
+            --light-text: #f9fafb;
+            --border-radius: 8px;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            color: var(--dark-text);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        nav ul {
+            display: flex;
+            list-style: none;
+        }
+        
+        nav ul li {
+            margin-left: 20px;
+        }
+        
+        nav ul li a {
+            text-decoration: none;
+            color: var(--dark-text);
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+        
+        nav ul li a:hover {
+            color: var(--primary-color);
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: var(--light-text);
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-card {
+            padding: 15px;
+            border-radius: var(--border-radius);
+            text-align: center;
+        }
+        
+        .summary-card.income {
+            background-color: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--success-color);
+        }
+        
+        .summary-card.expenses {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid var(--danger-color);
+        }
+        
+        .summary-card.balance {
+            background-color: rgba(37, 99, 235, 0.1);
+            border: 1px solid var(--primary-color);
+        }
+        
+        .summary-card h3 {
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: var(--dark-text);
+        }
+        
+        .summary-card .amount {
+            font-size: 22px;
+            font-weight: bold;
+        }
+        
+        .income .amount {
+            color: var(--success-color);
+        }
+        
+        .expenses .amount {
+            color: var(--danger-color);
+        }
+        
+        .balance .amount {
+            color: var(--primary-color);
+        }
+        
+        .transactions-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .transaction-info {
+            display: flex;
+            align-items: center;
+        }
+        
+        .category-icon {
+            width: 32px;
+            height: 32px;
+            background-color: #e5e7eb;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+        }
+        
+        .transaction-details h4 {
+            font-size: 16px;
+            margin-bottom: 3px;
+        }
+        
+        .transaction-details p {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .transaction-amount {
+            font-weight: 600;
+        }
+        
+        .income-amount {
+            color: var(--success-color);
+        }
+        
+        .expense-amount {
+            color: var(--danger-color);
+        }
+        
+        .budget-progress {
+            margin-top: 10px;
+        }
+        
+        .budget-category {
+            margin-bottom: 15px;
+        }
+        
+        .budget-category h4 {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .progress-bar {
+            height: 8px;
+            background-color: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress {
+            height: 100%;
+            border-radius: 4px;
+        }
+        
+        .progress.good {
+            background-color: var(--success-color);
+        }
+        
+        .progress.warning {
+            background-color: var(--warning-color);
+        }
+        
+        .progress.danger {
+            background-color: var(--danger-color);
+        }
+        
+        .chart-container {
+            width: 100%;
+            height: 300px;
+        }
+        
+        .add-transaction-form {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .form-group label {
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: var(--border-radius);
+            font-size: 14px;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .notifications {
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .notification-item {
+            padding: 10px;
+            border-left: 3px solid;
+            margin-bottom: 10px;
+            background-color: #f9fafb;
+        }
+        
+        .notification-item.warning {
+            border-color: var(--warning-color);
+        }
+        
+        .notification-item.info {
+            border-color: var(--primary-color);
+        }
+        
+        .notification-item p {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        .notification-item .date {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">FinanceSage</div>
+            <nav>
+                <ul>
+                    <li><a href="#" class="active">Tableau de bord</a></li>
+                    <li><a href="#">Transactions</a></li>
+                    <li><a href="#">Budgets</a></li>
+                    <li><a href="#">Rapports</a></li>
+                    <li><a href="#">Paramètres</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <main>
+            <div class="summary-cards">
+                <div class="summary-card income">
+                    <h3>Revenus du mois</h3>
+                    <div class="amount">3 250,00 €</div>
+                </div>
+                <div class="summary-card expenses">
+                    <h3>Dépenses du mois</h3>
+                    <div class="amount">2 175,50 €</div>
+                </div>
+                <div class="summary-card balance">
+                    <h3>Solde actuel</h3>
+                    <div class="amount">1 074,50 €</div>
+                </div>
+            </div>
+            
+            <div class="dashboard">
+                <div class="main-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Transactions récentes</h3>
+                            <button class="btn btn-primary" id="addTransactionBtn">Ajouter une transaction</button>
+                        </div>
+                        <div class="transactions-list">
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="category-icon">🏠</div>
+                                    <div class="transaction-details">
+                                        <h4>Loyer</h4>
+                                        <p>10 mars 2025</p>
+                                    </div>
+                                </div>
+                                <div class="transaction-amount expense-amount">-850,00 €</div>
+                            </div>
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="category-icon">💼</div>
+                                    <div class="transaction-details">
+                                        <h4>Salaire</h4>
+                                        <p>5 mars 2025</p>
+                                    </div>
+                                </div>
+                                <div class="transaction-amount income-amount">+2 500,00 €</div>
+                            </div>
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="category-icon">🍔</div>
+                                    <div class="transaction-details">
+                                        <h4>Restaurant</h4>
+                                        <p>8 mars 2025</p>
+                                    </div>
+                                </div>
+                                <div class="transaction-amount expense-amount">-45,80 €</div>
+                            </div>
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="category-icon">🛒</div>
+                                    <div class="transaction-details">
+                                        <h4>Courses</h4>
+                                        <p>7 mars 2025</p>
+                                    </div>
+                                </div>
+                                <div class="transaction-amount expense-amount">-120,30 €</div>
+                            </div>
+                            <div class="transaction-item">
+                                <div class="transaction-info">
+                                    <div class="category-icon">💰</div>
+                                    <div class="transaction-details">
+                                        <h4>Freelance</h4>
+                                        <p>3 mars 2025</p>
+                                    </div>
+                                </div>
+                                <div class="transaction-amount income-amount">+750,00 €</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Répartition des dépenses</h3>
+                        </div>
+                        <div class="chart-container">
+                            <svg viewBox="0 0 400 200" width="100%" height="100%">
+                                <!-- Création d'un graphique en camembert simplifié -->
+                                <g transform="translate(150, 100)">
+                                    <!-- Loyer - 40% -->
+                                    <path d="M0,0 L0,-80 A80,80 0 0,1 80,0 Z" fill="#2563eb" />
+                                    <!-- Nourriture - 25% -->
+                                    <path d="M0,0 L80,0 A80,80 0 0,1 0,80 Z" fill="#10b981" />
+                                    <!-- Transport - 15% -->
+                                    <path d="M0,0 L0,80 A80,80 0 0,1 -60,53 Z" fill="#f59e0b" />
+                                    <!-- Loisirs - 10% -->
+                                    <path d="M0,0 L-60,53 A80,80 0 0,1 -80,0 Z" fill="#ef4444" />
+                                    <!-- Divers - 10% -->
+                                    <path d="M0,0 L-80,0 A80,80 0 0,1 0,-80 Z" fill="#8b5cf6" />
+                                </g>
+                                
+                                <!-- Légende -->
+                                <g transform="translate(300, 70)">
+                                    <rect x="0" y="0" width="15" height="15" fill="#2563eb" />
+                                    <text x="20" y="12" font-size="12">Loyer (40%)</text>
+                                    
+                                    <rect x="0" y="25" width="15" height="15" fill="#10b981" />
+                                    <text x="20" y="37" font-size="12">Nourriture (25%)</text>
+                                    
+                                    <rect x="0" y="50" width="15" height="15" fill="#f59e0b" />
+                                    <text x="20" y="62" font-size="12">Transport (15%)</text>
+                                    
+                                    <rect x="0" y="75" width="15" height="15" fill="#ef4444" />
+                                    <text x="20" y="87" font-size="12">Loisirs (10%)</text>
+                                    
+                                    <rect x="0" y="100" width="15" height="15" fill="#8b5cf6" />
+                                    <text x="20" y="112" font-size="12">Divers (10%)</text>
+                                </g>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="side-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Suivi du budget</h3>
+                        </div>
+                        <div class="budget-progress">
+                            <div class="budget-category">
+                                <h4>
+                                    <span>Loyer</span>
+                                    <span>850 € / 850 €</span>
+                                </h4>
+                                <div class="progress-bar">
+                                    <div class="progress good" style="width: 100%"></div>
+                                </div>
+                            </div>
+                            <div class="budget-category">
+                                <h4>
+                                    <span>Nourriture</span>
+                                    <span>420 € / 500 €</span>
+                                </h4>
+                                <div class="progress-bar">
+                                    <div class="progress good" style="width: 84%"></div>
+                                </div>
+                            </div>
+                            <div class="budget-category">
+                                <h4>
+                                    <span>Transport</span>
+                                    <span>275 € / 300 €</span>
+                                </h4>
+                                <div class="progress-bar">
+                                    <div class="progress warning" style="width: 92%"></div>
+                                </div>
+                            </div>
+                            <div class="budget-category">
+                                <h4>
+                                    <span>Loisirs</span>
+                                    <span>230 € / 200 €</span>
+                                </h4>
+                                <div class="progress-bar">
+                                    <div class="progress danger" style="width: 115%"></div>
+                                </div>
+                            </div>
+                            <div class="budget-category">
+                                <h4>
+                                    <span>Divers</span>
+                                    <span>110 € / 250 €</span>
+                                </h4>
+                                <div class="progress-bar">
+                                    <div class="progress good" style="width: 44%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Ajouter une transaction</h3>
+                        </div>
+                        <form class="add-transaction-form">
+                            <div class="form-group">
+                                <label for="transaction-type">Type de transaction</label>
+                                <div class="radio-group">
+                                    <div class="radio-item">
+                                        <input type="radio" id="income" name="transaction-type" value="income" checked>
+                                        <label for="income">Revenu</label>
+                                    </div>
+                                    <div class="radio-item">
+                                        <input type="radio" id="expense" name="transaction-type" value="expense">
+                                        <label for="expense">Dépense</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="description">Description</label>
+                                <input type="text" id="description" class="form-control" placeholder="Ex: Salaire, Loyer, Courses...">
+                            </div>
+                            <div class="form-group">
+                                <label for="amount">Montant (€)</label>
+                                <input type="number" id="amount" class="form-control" min="0" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label for="category">Catégorie</label>
+                                <select id="category" class="form-control">
+                                    <option value="">Sélectionner une catégorie</option>
+                                    <option value="income">Salaire</option>
+                                    <option value="income">Freelance</option>
+                                    <option value="income">Cadeau</option>
+                                    <option value="income">Autre revenu</option>
+                                    <option value="expense">Logement</option>
+                                    <option value="expense">Nourriture</option>
+                                    <option value="expense">Transport</option>
+                                    <option value="expense">Loisirs</option>
+                                    <option value="expense">Santé</option>
+                                    <option value="expense">Éducation</option>
+                                    <option value="expense">Autre dépense</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="date">Date</label>
+                                <input type="date" id="date" class="form-control">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                        </form>
+                    </div>
+                    
+                    <div class="notifications">
+                        <h3 class="card-title">Notifications</h3>
+                        <div class="notification-item warning">
+                            <p><strong>Alerte budget:</strong> Vous avez dépassé votre budget "Loisirs" de 15%.</p>
+                            <div class="date">Aujourd'hui, 14:28</div>
+                        </div>
+                        <div class="notification-item info">
+                            <p><strong>Rappel:</strong> Paiement de l'assurance prévu pour demain.</p>
+                            <div class="date">Aujourd'hui, 09:15</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // JavaScript pour la fonctionnalité de base
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialiser la date du jour pour le formulaire
+            document.getElementById('date').valueAsDate = new Date();
+            
+            // Simuler l'ajout de transaction
+            const form = document.querySelector('.add-transaction-form');
+            const transactionsList = document.querySelector('.transactions-list');
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const type = document.querySelector('input[name="transaction-type"]:checked').value;
+                const description = document.getElementById('description').value;
+                const amount = document.getElementById('amount').value;
+                const category = document.getElementById('category').value;
+                const date = document.getElementById('date').value;
+                
+                if (!description || !amount || !category || !date) {
+                    alert('Veuillez remplir tous les champs');
+                    return;
+                }
+                
+                // Créer une nouvelle transaction
+                const newTransaction = document.createElement('div');
+                newTransaction.className = 'transaction-item';
+                
+                // Déterminer l'icône en fonction de la catégorie
+                let icon = '💰';
+                if (category.includes('Logement')) icon = '🏠';
+                else if (category.includes('Nourriture')) icon = '🍔';
+                else if (category.includes('Transport')) icon = '🚗';
+                else if (category.includes('Loisirs')) icon = '🎮';
+                else if (category.includes('Santé')) icon = '🏥';
+                else if (category.includes('Éducation')) icon = '📚';
+                
+                const formattedDate = new Date(date).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+                
+                newTransaction.innerHTML = `
+                    <div class="transaction-info">
+                        <div class="category-icon">${icon}</div>
+                        <div class="transaction-details">
+                            <h4>${description}</h4>
+                            <p>${formattedDate}</p>
+                        </div>
+                    </div>
+                    <div class="transaction-amount ${type === 'income' ? 'income-amount' : 'expense-amount'}">
+                        ${type === 'income' ? '+' : '-'}${parseFloat(amount).toFixed(2)} €
+                    </div>
+                `;
+                
+                // Ajouter au début de la liste
+                transactionsList.insertBefore(newTransaction, transactionsList.firstChild);
+                
+                // Réinitialiser le formulaire
+                form.reset();
+                document.getElementById('date').valueAsDate = new Date();
+                
+                // Simuler la mise à jour des soldes (à implémenter complètement dans une vraie application)
+                updateBalances(type, parseFloat(amount));
+            });
+            
+            // Fonction pour mettre à jour les soldes
+            function updateBalances(type, amount) {
+                const incomeElement = document.querySelector('.summary-card.income .amount');
+                const expensesElement = document.querySelector('.summary-card.expenses .amount');
+                const balanceElement = document.querySelector('.summary-card.balance .amount');
+                
+                let currentIncome = parseFloat(incomeElement.textContent.replace(/[^\d,-]/g, '').replace(',', '.'));
+                let currentExpenses = parseFloat(expensesElement.textContent.replace(/[^\d,-]/g, '').replace(',', '.'));
+                
+                if (type === 'income') {
+                    currentIncome += amount;
+                    incomeElement.textContent = currentIncome.toFixed(2).replace('.', ',') + ' €';
+                } else {
+                    currentExpenses += amount;
+                    expensesElement.textContent = currentExpenses.toFixed(2).replace('.', ',') + ' €';
+                }
+                
+                const newBalance = currentIncome - currentExpenses;
+                balanceElement.textContent = newBalance.toFixed(2).replace('.', ',') + ' €';
+            }
+        });
+    </script>
+</body>
+</html>

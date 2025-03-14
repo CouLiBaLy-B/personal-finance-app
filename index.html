@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinanceSage - Gestion des Finances Personnelles</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo" data-page="dashboard">FinanceSage</div>
+            <nav>
+                <ul>
+                    <li><a href="#" data-page="dashboard" class="active">Tableau de bord</a></li>
+                    <li><a href="#" data-page="transactions">Transactions</a></li>
+                    <li><a href="#" data-page="budgets">Budgets</a></li>
+                    <li><a href="#" data-page="reports">Rapports</a></li>
+                    <li><a href="#" data-page="settings">Paramètres</a></li>
+                </ul>
+            </nav>
+        </header>
+        
+        <main>
+            <!-- Page Tableau de bord -->
+            <div id="dashboard-page" class="page active">
+                <div class="summary-cards">
+                    <div class="summary-card income">
+                        <h3>Revenus du mois</h3>
+                        <div class="amount">0,00 €</div>
+                    </div>
+                    <div class="summary-card expenses">
+                        <h3>Dépenses du mois</h3>
+                        <div class="amount">0,00 €</div>
+                    </div>
+                    <div class="summary-card balance">
+                        <h3>Solde actuel</h3>
+                        <div class="amount">0,00 €</div>
+                    </div>
+                </div>
+                
+                <div class="dashboard">
+                    <div class="main-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Transactions récentes</h3>
+                                <button class="btn btn-primary" id="addTransactionBtn">Ajouter une transaction</button>
+                            </div>
+                            <div class="transactions-list">
+                                <!-- Les transactions seront ajoutées dynamiquement ici -->
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Répartition des dépenses</h3>
+                            </div>
+                            <div class="chart-container">
+                                <!-- Le graphique sera généré dynamiquement ici -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="side-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Suivi du budget</h3>
+                            </div>
+                            <div class="budget-progress">
+                                <!-- Les budgets seront ajoutés dynamiquement ici -->
+                            </div>
+                        </div>
+                        
+                        <div class="card">
+                            <div class="card-header">
+                                <h3 class="card-title">Ajouter une transaction</h3>
+                            </div>
+                            <form class="add-transaction-form">
+                                <div class="form-group">
+                                    <label for="transaction-type">Type de transaction</label>
+                                    <div class="radio-group">
+                                        <div class="radio-item">
+                                            <input type="radio" id="income" name="transaction-type" value="income" checked>
+                                            <label for="income">Revenu</label>
+                                        </div>
+                                        <div class="radio-item">
+                                            <input type="radio" id="expense" name="transaction-type" value="expense">
+                                            <label for="expense">Dépense</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="description">Description</label>
+                                    <input type="text" id="description" class="form-control" placeholder="Ex: Salaire, Loyer, Courses">
+                                </div>
+                                <div class="form-group">
+                                    <label for="amount">Montant</label>
+                                    <input type="number" id="amount" class="form-control" placeholder="0.00" step="0.01">
+                                </div>
+                                <div class="form-group">
+                                    <label for="category">Catégorie</label>
+                                    <select id="category" class="form-control">
+                                        <option value="">Sélectionner une catégorie</option>
+                                        <option value="housing">Logement</option>
+                                        <option value="food">Nourriture</option>
+                                        <option value="transport">Transport</option>
+                                        <option value="leisure">Loisirs</option>
+                                        <option value="health">Santé</option>
+                                        <option value="income">Revenus</option>
+                                        <option value="other">Autre</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="date">Date</label>
+                                    <input type="date" id="date" class="form-control">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Ajouter</button>
+                            </form>
+                        </div>
+                        
+                        <div class="notifications">
+                            <div class="card-header">
+                                <h3 class="card-title">Notifications</h3>
+                            </div>
+                            <!-- Les notifications seront ajoutées dynamiquement ici -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Page Transactions -->
+            <div id="transactions-page" class="page">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Toutes les transactions</h3>
+                        <button class="btn btn-primary" id="addTransactionBtnAll">Ajouter une transaction</button>
+                    </div>
+                    <div class="filter-section">
+                        <div class="filter-control">
+                            <select id="category-filter" class="form-control">
+                                <option value="all">Toutes les catégories</option>
+                                <option value="housing">Logement</option>
+                                <option value="food">Nourriture</option>
+                                <option value="transport">Transport</option>
+                                <option value="leisure">Loisirs</option>
+                                <option value="health">Santé</option>
+                                <option value="income">Revenus</option>
+                                <option value="other">Autre</option>
+                            </select>
+                        </div>
+                        <div class="filter-control">
+                            <select id="type-filter" class="form-control">
+                                <option value="all">Tous les types</option>
+                                <option value="income">Revenus</option>
+                                <option value="expense">Dépenses</option>
+                            </select>
+                        </div>
+                        <div class="date-filter">
+                            <div class="filter-control">
+                                <label for="date-from">Du</label>
+                                <input type="date" id="date-from" class="form-control">
+                            </div>
+                            <div class="filter-control">
+                                <label for="date-to">Au</label>
+                                <input type="date" id="date-to" class="form-control">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" id="apply-filters">Appliquer</button>
+                    </div>
+                    <div class="transactions-list all-transactions-list">
+                        <!-- Les transactions seront ajoutées dynamiquement ici -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Page Budgets -->
+            <div id="budgets-page" class="page">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Mes budgets</h3>
+                        <button class="btn btn-primary" id="addBudgetBtn">Ajouter un budget</button>
+                    </div>
+                    <div class="tab-navigation">
+                        <div class="tab-item active" data-tab="active-budgets">Budgets actifs</div>
+                        <div class="tab-item" data-tab="all-budgets">Tous les budgets</div>
+                    </div>
+                    <div id="active-budgets" class="tab-content active">
+                        <!-- Les budgets actifs seront ajoutés dynamiquement ici -->
+                    </div>
+                    <div id="all-budgets" class="tab-content">
+                        <!-- Tous les budgets seront ajoutés dynamiquement ici -->
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Ajouter un budget</h3>
+                    </div>
+                    <form class="add-transaction-form">
+                        <div class="form-group">
+                            <label for="budget-name">Nom du budget</label>
+                            <input type="text" id="budget-name" class="form-control" placeholder="Ex: Loyer, Nourriture">
+                        </div>
+                        <div class="form-group">
+                            <label for="budget-amount">Montant</label>
+                            <input type="number" id="budget-amount" class="form-control" placeholder="0.00" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="budget-category">Catégorie</label>
+                            <select id="budget-category" class="form-control">
+                                <option value="">Sélectionner une catégorie</option>
+                                <option value="housing">Logement</option>
+                                <option value="food">Nourriture</option>
+                                <option value="transport">Transport</option>
+                                <option value="leisure">Loisirs</option>
+                                <option value="health">Santé</option>
+                                <option value="other">Autre</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="budget-period">Période</label>
+                            <select id="budget-period" class="form-control">
+                                <option value="monthly">Mensuel</option>
+                                <option value="quarterly">Trimestriel</option>
+                                <option value="yearly">Annuel</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Ajouter</button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Page Rapports -->
+            <div id="reports-page" class="page">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Rapports financiers</h3>
+                    </div>
+                    <div class="time-period-selector">
+                        <div class="time-period active" data-period="month">Mois</div>
+                        <div class="time-period" data-period="quarter">Trimestre</div>
+                        <div class="time-period" data-period="year">Année</div>
+                    </div>
+                    <div class="report-filters">
+                        <div class="filter-item">
+                            <select id="report-type" class="form-control">
+                                <option value="income-expense">Revenus vs Dépenses</option>
+                                <option value="expense-category">Dépenses par catégorie</option>
+                                <option value="savings">Épargne</option>
+                                <option value="trends">Tendances</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <select id="report-period" class="form-control">
+                                <option value="current">Période en cours</option>
+                                <option value="previous">Période précédente</option>
+                                <option value="year-to-date">Année en cours</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <!-- Le graphique sera généré dynamiquement ici -->
+                    </div>
+                    <div class="stats-cards">
+                        <div class="stats-card">
+                            <h3>Revenu total</h3>
+                            <div class="value">0,00 €</div>
+                        </div>
+                        <div class="stats-card">
+                            <h3>Dépense totale</h3>
+                            <div class="value">0,00 €</div>
+                        </div>
+                        <div class="stats-card">
+                            <h3>Économies</h3>
+                            <div class="value">0,00 €</div>
+                        </div>
+                    </div>
+                    <div class="export-section">
+                        <button class="btn btn-secondary">Exporter en PDF</button>
+                        <button class="btn btn-secondary">Exporter en CSV</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Analyse détaillée</h3>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Catégorie</th>
+                                <th>Montant</th>
+                                <th>% du total</th>
+                                <th>Variation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Les données du tableau seront générées dynamiquement ici -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Page Paramètres -->
+            <div id="settings-page" class="page">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Paramètres</h3>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Préférences générales</h3>
+                        <div class="settings-grid">
+                            <div class="settings-option">
+                                <div class="form-group">
+                                    <label for="currency">Devise</label>
+                                    <select id="currency" class="form-control">
+                                        <option value="EUR" selected>Euro (€)</option>
+                                        <option value="USD">Dollar américain ($)</option>
+                                        <option value="GBP">Livre sterling (£)</option>
+                                        <option value="JPY">Yen japonais (¥)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-option">
+                                <div class="form-group">
+                                    <label for="theme">Thème</label>
+                                    <select id="theme" class="form-control">
+                                        <option value="light" selected>Clair</option>
+                                        <option value="dark">Sombre</option>
+                                        <option value="system">Système</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-option">
+                                <div class="form-group">
+                                    <label for="language">Langue</label>
+                                    <select id="language" class="form-control">
+                                        <option value="fr" selected>Français</option>
+                                        <option value="en">English</option>
+                                        <option value="es">Español</option>
+                                        <option value="de">Deutsch</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="settings-option">
+                                <div class="form-group">
+                                    <label for="date-format">Format de date</label>
+                                    <select id="date-format" class="form-control">
+                                        <option value="dd/mm/yyyy" selected>JJ/MM/AAAA</option>
+                                        <option value="mm/dd/yyyy">MM/JJ/AAAA</option>
+                                        <option value="yyyy-mm-dd">AAAA-MM-JJ</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>Notifications</h3>
+                        <div class="notification-toggle">
+                            <span>Alertes de dépassement de budget</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="budget-alerts">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="notification-toggle">
+                            <span>Rappels de paiement</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="payment-reminders">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="notification-toggle">
+                            <span>Rapports mensuels</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="monthly-reports">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div class="notification-toggle">
+                            <span>Notifications par email</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="email-notifications">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>Compte</h3>
+                        <div class="form-group">
+                            <label for="name">Nom</label>
+                            <input type="text" id="name" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Mot de passe</label>
+                            <input type="password" id="password" class="form-control">
+                        </div>
+                        <button class="btn btn-primary">Sauvegarder les changements</button>
+                    </div>
+                    
+                    <div class="settings-section">
+                        <h3>Exportation des données</h3>
+                        <p>Téléchargez vos données financières pour les sauvegarder ou les analyser sur d'autres outils.</p>
+                        <div class="export-section">
+                            <button class="btn btn-secondary">Exporter toutes les données</button>
+                            <button class="btn btn-secondary">Exporter les transactions</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Modales -->
+        <div id="edit-transaction-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Modifier la transaction</h3>
+                    <span class="modal-close">&times;</span>
+                </div>
+                <form class="add-transaction-form">
+                    <div class="form-group">
+                        <label for="edit-description">Description</label>
+                        <input type="text" id="edit-description" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-amount">Montant</label>
+                        <input type="number" id="edit-amount" class="form-control" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-category">Catégorie</label>
+                        <select id="edit-category" class="form-control">
+                            <option value="housing">Logement</option>
+                            <option value="food">Nourriture</option>
+                            <option value="transport">Transport</option>
+                            <option value="leisure">Loisirs</option>
+                            <option value="health">Santé</option>
+                            <option value="income">Revenus</option>
+                            <option value="other">Autre</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-date">Date</label>
+                        <input type="date" id="edit-date" class="form-control">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary modal-cancel">Annuler</button>
+                        <button type="submit" class="btn btn-primary">Sauvegarder</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div id="delete-confirm-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Confirmer la suppression</h3>
+                    <span class="modal-close">&times;</span>
+                </div>
+                <p>Êtes-vous sûr de vouloir supprimer cette transaction ? Cette action est irréversible.</p>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary modal-cancel">Annuler</button>
+                    <button class="btn btn-danger confirm-delete">Supprimer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Importation des modules JavaScript -->
+    <script type="module" src="js/data.js"></script>
+    <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/dashboard.js"></script>
+    <script type="module" src="js/transactions.js"></script>
+    <script type="module" src="js/budgets.js"></script>
+    <script type="module" src="js/reports.js"></script>
+    <script type="module" src="js/settings.js"></script>
+    <script type="module" src="js/index.js"></script>
+</body>
+</html>
