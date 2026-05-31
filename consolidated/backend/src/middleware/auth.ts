@@ -22,11 +22,14 @@ declare global {
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
+    const cookieToken = req.cookies?.fintrack_access;
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : cookieToken;
+
+    if (!token) {
       throw new AppError("Token manquant. Veuillez vous authentifier.", 401);
     }
-
-    const token = authHeader.slice(7);
     const payload = verifyToken(token);
 
     req.userId = payload.sub;

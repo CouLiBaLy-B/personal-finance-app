@@ -8,6 +8,24 @@ import { signAccessToken, signRefreshToken, hashToken, verifyToken } from "../li
 import { AppError } from "../middleware/errorHandler.js";
 
 const SALT_ROUNDS = 10;
+const IS_PROD = process.env.NODE_ENV === "production";
+
+/** Set JWT in HttpOnly cookies for browser security */
+function setAuthCookies(res: Response, accessToken: string, refreshToken: string) {
+  const cookieOpts = {
+    httpOnly: true,
+    secure: IS_PROD,
+    sameSite: "lax" as const,
+    path: "/",
+  };
+  res.cookie("fintrack_access", accessToken, { ...cookieOpts, maxAge: 24 * 60 * 60 * 1000 });
+  res.cookie("fintrack_refresh", refreshToken, { ...cookieOpts, maxAge: 30 * 24 * 60 * 60 * 1000 });
+}
+
+function clearAuthCookies(res: Response) {
+  res.clearCookie("fintrack_access", { path: "/" });
+  res.clearCookie("fintrack_refresh", { path: "/" });
+}
 
 /** POST /auth/register */
 export async function register(req: Request, res: Response, next: NextFunction) {
@@ -43,9 +61,10 @@ export async function register(req: Request, res: Response, next: NextFunction) 
       },
     });
 
+    setAuthCookies(res, accessToken, refreshToken);
+
     res.status(201).json({
       token: accessToken,
-      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -80,9 +99,10 @@ export async function login(req: Request, res: Response, next: NextFunction) {
       },
     });
 
+    setAuthCookies(res, accessToken, refreshToken);
+
     res.json({
       token: accessToken,
-      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -126,12 +146,13 @@ export async function refresh(req: Request, res: Response, next: NextFunction) {
 /** POST /auth/logout */
 export async function logout(req: Request, res: Response, next: NextFunction) {
   try {
-    const { refreshToken } = req.body;
+    const refreshToken = req.body.refreshToken ?? req.cookies?.fintrack_refresh;
     if (refreshToken) {
       await prisma.session.deleteMany({
         where: { refreshTokenHash: hashToken(refreshToken) },
       });
     }
+    clearAuthCookies(res);
     res.json({ message: "Déconnexion réussie." });
   } catch (err) { next(err); }
 }

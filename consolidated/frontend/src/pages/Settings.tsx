@@ -65,11 +65,13 @@ export default function Settings() {
     setSyncing(true);
     try {
       const result = await syncAll(user!.id);
-      const totalPushed = Object.values(result.pushed).reduce((a, b) => a + b, 0);
       toast.success(
         "Synchronisation terminée",
-        `${totalPushed} entité(s) poussée(s), ${result.pulled} reçue(s).`
+        `${result.pushed} poussée(s), ${result.pulled} reçue(s)${result.conflicts > 0 ? `, ${result.conflicts} conflit(s)` : ""}.`
       );
+      if (result.conflicts > 0) {
+        toast.warning("Conflits détectés", "Certaines données locales étaient plus récentes que le serveur — elles seront re-poussées au prochain sync.");
+      }
     } catch (err) {
       toast.error("Erreur sync", err instanceof Error ? err.message : "Erreur inconnue");
     } finally {

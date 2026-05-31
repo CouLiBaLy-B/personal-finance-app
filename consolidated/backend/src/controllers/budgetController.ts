@@ -3,7 +3,7 @@
  */
 import type { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prisma.js";
-import { toNumber } from "../utils/index.js";
+import { toNumber, parsePagination } from "../utils/index.js";
 import { AppError } from "../middleware/errorHandler.js";
 
 /** GET /budgets */

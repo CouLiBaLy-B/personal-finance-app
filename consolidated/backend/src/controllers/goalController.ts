@@ -3,7 +3,7 @@
  */
 import type { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prisma.js";
-import { toNumber } from "../utils/index.js";
+import { toNumber, parsePagination } from "../utils/index.js";
 import { AppError } from "../middleware/errorHandler.js";
 
 /** GET /goals */
@@ -104,23 +104,30 @@ export async function contribute(req: Request, res: Response, next: NextFunction
     });
     if (!goal) throw new AppError("Objectif introuvable.", 404);
 
-    const newAmount = toNumber(goal.currentAmount) + amount;
-    const isCompleted = newAmount >= toNumber(goal.targetAmount);
-
-    await prisma.$transaction([
+    // Atomic increment to prevent race conditions
+    const [, updated] = await prisma.$transaction([
       prisma.goalTransaction.create({
         data: { goalId: goal.id, amount, notes },
       }),
       prisma.goal.update({
         where: { id: goal.id },
-        data: { currentAmount: newAmount, isCompleted },
+        data: { currentAmount: { increment: amount } },
       }),
     ]);
+
+    const newAmount = toNumber(updated.currentAmount);
+    const targetAmt = toNumber(updated.targetAmount);
+    const isCompleted = newAmount >= targetAmt;
+
+    // Update completion flag in a separate (non-critical) call
+    if (isCompleted && !updated.isCompleted) {
+      await prisma.goal.update({ where: { id: goal.id }, data: { isCompleted: true } });
+    }
 
     res.json({
       currentAmount: newAmount,
       isCompleted,
-      percentage: Math.round((newAmount / toNumber(goal.targetAmount)) * 100),
+      percentage: targetAmt > 0 ? Math.round((newAmount / targetAmt) * 100) : 0,
     });
   } catch (err) { next(err); }
 }
