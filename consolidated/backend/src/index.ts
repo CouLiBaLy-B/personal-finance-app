@@ -2,6 +2,9 @@
  * FinTrack Backend — Consolidated Entry Point.
  */
 import "dotenv/config";
+import { initSentry, Sentry } from "./lib/sentry.js";
+initSentry(); // Must be first!
+
 import express from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
@@ -79,8 +82,28 @@ app.get("/health", async (_req, res) => {
   });
 });
 
+// ============ Swagger / OpenAPI ============
+if (process.env.NODE_ENV !== "production") {
+  import("swagger-ui-express").then((swaggerUi) => {
+    import("fs").then((fsm) => {
+      import("yaml").then((yaml) => {
+        try {
+          const doc = yaml.parse(fsm.readFileSync("openapi.yaml", "utf-8"));
+          app.use("/docs", swaggerUi.serve, swaggerUi.setup(doc, { customSiteTitle: "FinTrack API" }));
+          logger.info("📚 Swagger UI: http://localhost:" + PORT + "/docs");
+        } catch {}
+      });
+    });
+  });
+}
+
 // ============ API Routes ============
 app.use("/api/v1", apiRouter);
+
+// ============ Sentry error handler (before our custom one) ============
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // ============ Error handler (must be last) ============
 app.use(errorHandler);
