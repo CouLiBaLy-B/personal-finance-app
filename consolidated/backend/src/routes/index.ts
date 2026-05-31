@@ -12,10 +12,12 @@ import recurringRoutes from "./recurring.js";
 import reportRoutes from "./reports.js";
 import fxRoutes from "./fx.js";
 import syncRoutes from "./sync.js";
+import userRoutes from "./users.js";
 
 const router = Router();
 
 router.use("/auth", authRoutes);
+router.use("/users", userRoutes);
 router.use("/accounts", accountRoutes);
 router.use("/categories", categoryRoutes);
 router.use("/transactions", transactionRoutes);
