@@ -1,0 +1,87 @@
+version: "3.9"
+
+# ===============================
+# FinTrack — Stack complet
+# Frontend : Vite + React + Tailwind
+# Backend  : Node.js + Express + Prisma
+# Base     : PostgreSQL
+# Sécurité:
+#   - Network isolation (backend db)
+#   - Variables injectées via .env
+#   - Volumes persistants pour postgres et uploads
+# ===============================
+
+networks:
+  fintrack:
+    driver: bridge
+
+volumes:
+  fintrack-postgres:
+  fintrack-uploads:
+
+services:
+  # ---------- Base de données ----------
+  postgres:
+    image: postgres:15-alpine
+    container_name: fintrack-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fintrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fintrack_pwd}
+      POSTGRES_DB: ${POSTGRES_DB:-fintrack}
+    volumes:
+      - fintrack-postgres:/var/lib/postgresql/data
+    networks:
+      - fintrack
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fintrack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ---------- Backend API ----------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fintrack-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: ${BACKEND_PORT:-4000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fintrack}:${POSTGRES_PASSWORD:-fintrack_pwd}@postgres:5432/${POSTGRES_DB:-fintrack}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please-32chars-min}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:5173}
+      UPLOAD_DIR: /uploads
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:4000/api/v1/auth/oauth/google/callback}
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:-}
+    volumes:
+      - fintrack-uploads:/uploads
+    networks:
+      - fintrack
+    ports:
+      - "${BACKEND_PORT:-4000}:${BACKEND_PORT:-4000}"
+
+  # ---------- Frontend (sert le build Vite) ----------
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: fintrack-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:4000/api/v1}
+    networks:
+      - fintrack
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"

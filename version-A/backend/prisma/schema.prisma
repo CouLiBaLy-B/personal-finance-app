@@ -1,0 +1,151 @@
+// FinTrack — Prisma schema (PostgreSQL)
+// Modèle conforme à l'architecture décrite en introduction
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ Utilisateurs ============
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String
+  baseCurrency String   @default("EUR")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accounts     Account[]
+  categories   Category[]
+  transactions Transaction[]
+  budgets      Budget[]
+  goals        Goal[]
+  recurring    RecurringTransaction[]
+
+  @@map("users")
+}
+
+// ============ Comptes ============
+model Account {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  type           String   // checking | saving | cash | card
+  currency       String   // ISO 4217
+  initialBalance Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  transactions   Transaction[]
+
+  @@index([userId, type])
+  @@map("accounts")
+}
+
+// ============ Catégories / sous-catégories ============
+model Category {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  color     String   // hex
+  icon      String   // emoji
+  kind      String   // expense | income
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions Transaction[]
+
+  @@index([userId, kind])
+  @@map("categories")
+}
+
+// ============ Transactions ============
+model Transaction {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId    String
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId   String
+  category     Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  amount       Decimal   @db.Decimal(12, 2)
+  type         String    // expense | income | transfer
+  currency     String
+  date         DateTime
+  description  String
+  recurringId  String?
+  goalId       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([userId, accountId, date])
+  @@index([userId, categoryId])
+  @@map("transactions")
+}
+
+// ============ Budgets ============
+model Budget {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  limit          Decimal  @db.Decimal(12, 2)
+  month          String   // YYYY-MM
+  alertThreshold Int  @default(80) // % (0-100)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, categoryId, month])
+  @@index([userId, month])
+  @@map("budgets")
+}
+
+// ============ Objectifs d'épargne ============
+model Goal {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label          String
+  targetAmount   Decimal  @db.Decimal(12, 2)
+  currentAmount  Decimal  @default(0) @db.Decimal(12, 2)
+  targetDate     DateTime
+  color          String
+  icon           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@map("goals")
+}
+
+// ============ Transactions récurrentes ============
+model RecurringTransaction {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId   String
+  category     Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  amount       Decimal  @db.Decimal(12, 2)
+  type         String   // expense | income
+  currency     String
+  description  String
+  frequency    String   // daily | weekly | monthly | yearly
+  nextDate     DateTime
+  endDate      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, nextDate])
+  @@map("recurring_transactions")
+}

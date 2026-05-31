@@ -1,0 +1,11 @@
+
+# =================================
+# FinTrack — .gitignore
+# =================================
+node_modules/
+dist/
+uploads/
+.env
+*.log
+.DS_Store
+.vscode/
