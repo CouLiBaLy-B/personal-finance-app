@@ -1,0 +1,261 @@
+// FinTrack — Schéma Prisma Consolidé
+// Fusionne : Version B (riche) + Version A (@@map) + champs sync
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ Utilisateurs ============
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String?
+  fullName     String?
+  baseCurrency String    @default("EUR")
+  avatarUrl    String?
+  googleId     String?   @unique
+  isVerified   Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  accounts     Account[]
+  categories   Category[]
+  transactions Transaction[]
+  budgets      Budget[]
+  goals        Goal[]
+  recurring    RecurringTransaction[]
+  sessions     Session[]
+  attachments  Attachment[]
+
+  @@index([email])
+  @@index([googleId])
+  @@map("users")
+}
+
+// ============ Comptes ============
+model Account {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  type           String    @default("checking")
+  currency       String    @default("EUR")
+  initialBalance Decimal   @default(0) @db.Decimal(12, 2)
+  currentBalance Decimal   @default(0) @db.Decimal(12, 2)
+  color          String?   @default("#0ea5e9")
+  icon           String?   @default("💳")
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  transactions Transaction[]
+  recurring    RecurringTransaction[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("accounts")
+}
+
+// ============ Catégories ============
+model Category {
+  id        String     @id @default(uuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  kind      String     @default("expense")
+  color     String     @default("#64748b")
+  icon      String?    @default("🏷️")
+  parentId  String?
+  parent    Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryHierarchy")
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+
+  transactions Transaction[]
+  budgets      Budget[]
+  recurring    RecurringTransaction[]
+
+  @@unique([userId, label])
+  @@index([userId])
+  @@index([parentId])
+  @@map("categories")
+}
+
+// ============ Transactions ============
+model Transaction {
+  id            String                @id @default(uuid())
+  userId        String
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId     String
+  account       Account               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId    String?
+  category      Category?             @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  amount        Decimal               @db.Decimal(12, 2)
+  type          String                @default("expense")
+  currency      String                @default("EUR")
+  date          DateTime
+  description   String?
+  notes         String?
+  recurringId   String?
+  recurring     RecurringTransaction? @relation(fields: [recurringId], references: [id])
+  goalId        String?
+  goal          Goal?                 @relation(fields: [goalId], references: [id])
+  attachmentIds String[]              @default([])
+  uploadedFiles Attachment[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  deletedAt     DateTime?
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([categoryId])
+  @@index([date])
+  @@index([recurringId])
+  @@index([goalId])
+  @@index([userId, date])
+  @@map("transactions")
+}
+
+// ============ Budgets ============
+model Budget {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId     String
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  month          String
+  year           Int
+  limit          Decimal  @db.Decimal(12, 2)
+  currentAmount  Decimal  @default(0) @db.Decimal(12, 2)
+  alertThreshold Int      @default(80)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  @@unique([userId, categoryId, month])
+  @@index([userId])
+  @@index([categoryId])
+  @@index([month])
+  @@index([userId, month])
+  @@map("budgets")
+}
+
+// ============ Objectifs d'épargne ============
+model Goal {
+  id            String            @id @default(uuid())
+  userId        String
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label         String
+  description   String?
+  targetAmount  Decimal           @db.Decimal(12, 2)
+  currentAmount Decimal           @default(0) @db.Decimal(12, 2)
+  targetDate    DateTime
+  color         String            @default("#0ea5e9")
+  icon          String?           @default("🎯")
+  isCompleted   Boolean           @default(false)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deletedAt     DateTime?
+
+  transactions  Transaction[]
+  contributions GoalTransaction[]
+
+  @@index([userId])
+  @@index([targetDate])
+  @@map("goals")
+}
+
+// ============ Contributions objectifs ============
+model GoalTransaction {
+  id            String       @id @default(uuid())
+  goalId        String
+  goal          Goal         @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  transactionId String?
+  amount        Decimal      @db.Decimal(12, 2)
+  date          DateTime     @default(now())
+  notes         String?
+  createdAt     DateTime     @default(now())
+
+  @@unique([goalId, transactionId])
+  @@index([goalId])
+  @@index([transactionId])
+  @@map("goal_transactions")
+}
+
+// ============ Transactions récurrentes ============
+model RecurringTransaction {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId   String
+  account     Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  amount      Decimal   @db.Decimal(12, 2)
+  type        String    @default("expense")
+  currency    String    @default("EUR")
+  description String
+  frequency   String
+  interval    Int       @default(1)
+  startDate   DateTime  @default(now())
+  nextDate    DateTime
+  endDate     DateTime?
+  occurrences Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  transactions Transaction[]
+
+  @@index([userId])
+  @@index([accountId])
+  @@index([nextDate])
+  @@index([isActive])
+  @@map("recurring_transactions")
+}
+
+// ============ Sessions JWT ============
+model Session {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String
+  ipAddress        String?
+  userAgent        String?
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ============ Pièces jointes ============
+model Attachment {
+  id            String       @id @default(uuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename      String
+  originalName  String
+  mimeType      String
+  size          Int
+  url           String
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  createdAt     DateTime     @default(now())
+
+  @@index([userId])
+  @@index([transactionId])
+  @@map("attachments")
+}

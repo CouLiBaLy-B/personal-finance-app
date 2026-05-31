@@ -1,0 +1,77 @@
+version: "3.9"
+
+# ============================================================
+# FinTrack — Consolidated Stack
+# Frontend : Vite + React + Tailwind (served by Nginx)
+# Backend  : Node.js + Express + Prisma
+# Database : PostgreSQL 16
+# Network  : isolated bridge (from Version A)
+# ============================================================
+
+networks:
+  fintrack:
+    driver: bridge
+
+volumes:
+  fintrack-postgres:
+  fintrack-uploads:
+
+services:
+  # ---------- Database ----------
+  postgres:
+    image: postgres:16-alpine
+    container_name: fintrack-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fintrack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fintrack_pwd}
+      POSTGRES_DB: ${POSTGRES_DB:-fintrack}
+    volumes:
+      - fintrack-postgres:/var/lib/postgresql/data
+    networks:
+      - fintrack
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fintrack}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ---------- Backend API ----------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fintrack-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: ${BACKEND_PORT:-4000}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fintrack}:${POSTGRES_PASSWORD:-fintrack_pwd}@postgres:5432/${POSTGRES_DB:-fintrack}?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please-32chars-min}
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:5173}
+      UPLOAD_DIR: /uploads
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    volumes:
+      - fintrack-uploads:/uploads
+    networks:
+      - fintrack
+    ports:
+      - "${BACKEND_PORT:-4000}:${BACKEND_PORT:-4000}"
+
+  # ---------- Frontend ----------
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: fintrack-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    networks:
+      - fintrack
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"

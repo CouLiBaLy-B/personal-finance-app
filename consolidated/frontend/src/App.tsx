@@ -1,0 +1,81 @@
+/**
+ * FinTrack App — Consolidated (C base + A hybrid auth + B health).
+ */
+import { useEffect } from "react";
+import { BrowserRouter, HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import Layout from "./components/Layout";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Accounts from "./pages/Accounts";
+import Transactions from "./pages/Transactions";
+import Transfer from "./pages/Transfer";
+import Categories from "./pages/Categories";
+import Budgets from "./pages/Budgets";
+import Goals from "./pages/Goals";
+import Recurring from "./pages/Recurring";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
+import { useSession } from "./store/useSession";
+import { processRecurring } from "./services/recurring";
+import { ToastViewport, ConfirmViewport, toast } from "./components/Toast";
+
+const Router = (typeof window !== "undefined" && window.location.protocol === "file:")
+  ? HashRouter
+  : BrowserRouter;
+
+function ProtectedRoutes() {
+  const { user, loading } = useSession();
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="text-sm text-slate-500">Chargement...</div>
+      </div>
+    );
+  }
+  if (!user) return <Navigate to="/login" replace />;
+  return <Layout />;
+}
+
+export default function App() {
+  const { init, user } = useSession();
+
+  useEffect(() => { init(); }, [init]);
+
+  useEffect(() => {
+    if (user) {
+      processRecurring(user.id).then((n) => {
+        if (n > 0) toast.info(`${n} transaction${n > 1 ? "s" : ""} récurrente${n > 1 ? "s" : ""} générée${n > 1 ? "s" : ""}`);
+      });
+    }
+  }, [user]);
+
+  return (
+    <Router>
+      <ToastViewport />
+      <ConfirmViewport />
+      <Routes>
+        <Route path="/login" element={<LoginGuard />} />
+        <Route element={<ProtectedRoutes />}>
+          <Route index element={<Dashboard />} />
+          <Route path="accounts" element={<Accounts />} />
+          <Route path="transactions" element={<Transactions />} />
+          <Route path="transfer" element={<Transfer />} />
+          <Route path="categories" element={<Categories />} />
+          <Route path="budgets" element={<Budgets />} />
+          <Route path="goals" element={<Goals />} />
+          <Route path="recurring" element={<Recurring />} />
+          <Route path="reports" element={<Reports />} />
+          <Route path="settings" element={<Settings />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
+  );
+}
+
+function LoginGuard() {
+  const { user, loading } = useSession();
+  if (loading) return null;
+  if (user) return <Navigate to="/" replace />;
+  return <Login />;
+}
