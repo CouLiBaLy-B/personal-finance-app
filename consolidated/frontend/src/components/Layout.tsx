@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useSession } from "../store/useSession";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { usePWA } from "../hooks/usePWA";
 
 const nav = [
   { to: "/", label: "Tableau de bord", icon: LayoutDashboard },
@@ -43,6 +44,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const { browserOnline, backendOnline } = useOnlineStatus();
+  const { canInstall, install } = usePWA();
 
   function handleLogout() {
     logout();
@@ -93,8 +95,16 @@ export default function Layout() {
           </ul>
         </nav>
 
-        {/* Connectivity status */}
-        <div className="border-t border-slate-100 px-4 py-2">
+        {/* PWA install + Connectivity */}
+        <div className="border-t border-slate-100 px-4 py-2 space-y-1">
+          {canInstall && (
+            <button
+              onClick={install}
+              className="flex w-full items-center gap-2 rounded-lg bg-sky-50 px-2 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100 transition"
+            >
+              📲 Installer l'app
+            </button>
+          )}
           <div className={`flex items-center gap-2 text-xs ${statusColor}`}>
             <StatusIcon size={14} />
             <span>{statusLabel}</span>

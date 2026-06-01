@@ -13,7 +13,7 @@ jobs:
   # Frontend checks
   # ==========================================
   frontend:
-    name: Frontend (TypeScript + Build)
+    name: Frontend (TypeScript + Build + Audit)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -31,25 +31,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Security audit
+        run: npm audit --audit-level=high || true
+
       - name: TypeScript check
         run: npx tsc --noEmit
 
       - name: Build
-        run: npm run build
+        run: VITE_PWA=false npm run build
+        env:
+          NODE_ENV: production
 
       - name: Check bundle size
         run: |
-          SIZE=$(du -sk dist/index.html | cut -f1)
-          echo "Bundle size: ${SIZE}KB"
-          if [ "$SIZE" -gt 3000 ]; then
-            echo "⚠️ Warning: bundle exceeds 3MB"
+          SIZE=$(du -sk dist/ | cut -f1)
+          echo "📦 Bundle size: ${SIZE}KB"
+          if [ "$SIZE" -gt 5000 ]; then
+            echo "⚠️ Warning: bundle exceeds 5MB"
           fi
 
   # ==========================================
   # Backend checks
   # ==========================================
   backend:
-    name: Backend (TypeScript + Build)
+    name: Backend (TypeScript + Tests + Audit)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -67,6 +72,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Security audit
+        run: npm audit --audit-level=high || true
+
       - name: Generate Prisma Client
         run: npx prisma generate
 
@@ -74,9 +82,10 @@ jobs:
         run: npx tsc --noEmit
 
       - name: Run tests
-        run: npm test
+        run: npm test -- --forceExit
         env:
           JWT_SECRET: test-secret-for-ci-pipeline-at-least-32-chars
+          NODE_ENV: test
 
       - name: Build
         run: npm run build

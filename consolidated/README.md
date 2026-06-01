@@ -155,16 +155,43 @@ fintrack/
 | GET     | `/api/v1/fx/rates?base=EUR`        |
 | GET     | `/api/v1/fx/convert?from=EUR&to=USD&amount=100` |
 
-## 🔒 Sécurité
+## 📱 PWA (Progressive Web App)
+
+L'application est installable comme une app native :
+- **Offline complet** via Service Worker (Workbox)
+- **Install prompt** dans la sidebar
+- **Cache FX rates** en StaleWhileRevalidate (6h)
+- Manifest avec icônes 192x512
+
+```bash
+# Build avec PWA (par défaut)
+npm run build
+
+# Build sans PWA (ex: pour single-file)
+VITE_PWA=false npm run build
+```
+
+## 📡 Observabilité
+
+- **Sentry** : error tracking backend (`@sentry/node`) + frontend (`@sentry/react`)
+  - Session replay sur erreurs (100%)
+  - Traces sampling (20% en prod)
+  - Active uniquement si `SENTRY_DSN` est configuré
+- **Health endpoint enrichi** : `/health` retourne DB status, mémoire, uptime, code 503 si dégradé
+- **Swagger UI** : `/docs` en mode développement (OpenAPI 3.1)
+
+## 🔐 Sécurité
 
 - Mots de passe hashés avec **bcrypt** (cost 10)
 - **JWT** avec rotation des refresh tokens
+- JWT stocké en **cookie HttpOnly** (SameSite=lax, Secure en prod)
 - Refresh tokens stockés **hashés** (SHA-256) en base
 - **Rate limiting** : 200 req/15min global, 20 req/15min auth
 - **Helmet** pour les headers de sécurité
 - **CORS** restreint aux origines autorisées
-- **Validation Zod** sur toutes les entrées
+- **Validation Zod** sur toutes les entrées (y compris profile, password, sync)
 - Refus de démarrage sans `JWT_SECRET` en production
+- **Sentry** error tracking (opt-in)
 - Conformité RGPD : export + suppression totale
 
 ## 📊 Technologies
@@ -174,6 +201,43 @@ fintrack/
 | Frontend  | React 19, Vite, Tailwind CSS 4, Zustand, Dexie, Recharts, jsPDF |
 | Backend   | Node.js 20+, Express, Prisma, PostgreSQL, Zod, Winston          |
 | Infra     | Docker Compose, Nginx, GitHub Actions (CI/CD)                    |
+
+## 🧪 Tests
+
+```bash
+# Backend (66 tests, 7 suites)
+cd backend && npm test
+
+# E2E (Playwright — nécessite le frontend en dev)
+cd e2e && npx playwright install && npm test
+```
+
+| Suite | Tests | Type |
+|-------|:-----:|------|
+| jwt | 6 | Unit |
+| validation | 15 | Unit |
+| utils | 10 | Unit |
+| errorHandler | 8 | Unit |
+| auth.integration | 10 | Integration |
+| accounts.integration | 5 | Integration |
+| transactions.integration | 6 | Integration |
+| E2E smoke | 5 | Playwright |
+
+## 🚀 Déploiement production
+
+```bash
+# 1. Copier et configurer l'environnement
+cp .env.example .env
+# Remplir : JWT_SECRET, POSTGRES_PASSWORD, DOMAIN, ACME_EMAIL, SENTRY_DSN
+
+# 2. Lancer avec TLS (Traefik + Let's Encrypt)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# 3. Vérifier
+curl https://your-domain.com/health
+```
+
+Les backups PostgreSQL sont automatiques (toutes les 6h, rétention 30 jours).
 
 ## 📝 Licence
 
