@@ -1,0 +1,406 @@
+openapi: 3.1.0
+info:
+  title: FinTrack API
+  description: API de gestion financière personnelle — offline-first, multi-devises, synchronisation bidirectionnelle.
+  version: 1.0.0
+  contact:
+    name: FinTrack
+    url: https://github.com/CouLiBaLy-B/personal-finance-app
+
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Développement local
+  - url: https://fintrack.example.com/api/v1
+    description: Production
+
+tags:
+  - name: Auth
+    description: Authentification et gestion du compte
+  - name: Accounts
+    description: Comptes bancaires (courant, épargne, espèces, carte)
+  - name: Categories
+    description: Catégories de dépenses/revenus
+  - name: Transactions
+    description: Transactions financières
+  - name: Budgets
+    description: Budgets mensuels par catégorie
+  - name: Goals
+    description: Objectifs d'épargne
+  - name: Recurring
+    description: Transactions récurrentes automatisées
+  - name: Reports
+    description: Rapports et statistiques
+  - name: FX
+    description: Taux de change
+  - name: Sync
+    description: Synchronisation offline-first
+  - name: Users
+    description: Gestion utilisateur et RGPD
+
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: fintrack_access
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        fullName:
+          type: string
+        baseCurrency:
+          type: string
+          example: EUR
+
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [checking, saving, cash, card]
+        currency:
+          type: string
+        initialBalance:
+          type: number
+        currentBalance:
+          type: number
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+        categoryId:
+          type: string
+          nullable: true
+        amount:
+          type: number
+          minimum: 0.01
+        type:
+          type: string
+          enum: [expense, income, transfer]
+        currency:
+          type: string
+        date:
+          type: string
+          format: date
+        description:
+          type: string
+
+    Budget:
+      type: object
+      properties:
+        id:
+          type: string
+        categoryId:
+          type: string
+        month:
+          type: string
+          pattern: '^\d{4}-\d{2}$'
+        limit:
+          type: number
+        alertThreshold:
+          type: integer
+          minimum: 0
+          maximum: 100
+        currentAmount:
+          type: number
+        percentage:
+          type: integer
+        isOverBudget:
+          type: boolean
+
+    Goal:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        targetAmount:
+          type: number
+        currentAmount:
+          type: number
+        targetDate:
+          type: string
+          format: date
+        percentage:
+          type: integer
+        isCompleted:
+          type: boolean
+
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Inscription
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+                fullName:
+                  type: string
+                baseCurrency:
+                  type: string
+                  default: EUR
+      responses:
+        '201':
+          description: Compte créé
+        '400':
+          description: Données invalides
+        '409':
+          description: Email déjà utilisé
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Connexion
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Token JWT + cookie HttpOnly
+        '401':
+          description: Identifiants invalides
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Profil de l'utilisateur connecté
+      responses:
+        '200':
+          description: Profil utilisateur
+
+  /auth/account:
+    delete:
+      tags: [Auth]
+      summary: Supprimer le compte (RGPD)
+      responses:
+        '200':
+          description: Compte supprimé
+
+  /accounts:
+    get:
+      tags: [Accounts]
+      summary: Liste des comptes avec solde calculé
+      responses:
+        '200':
+          description: Liste des comptes
+    post:
+      tags: [Accounts]
+      summary: Créer un compte
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                  enum: [checking, saving, cash, card]
+                currency:
+                  type: string
+                initialBalance:
+                  type: number
+      responses:
+        '201':
+          description: Compte créé
+
+  /transactions:
+    get:
+      tags: [Transactions]
+      summary: Liste paginée des transactions
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: accountId
+          in: query
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [expense, income, transfer]
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transactions paginées
+
+  /sync/pull:
+    get:
+      tags: [Sync]
+      summary: Récupérer les modifications depuis le serveur
+      parameters:
+        - name: since
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Entités modifiées
+
+  /sync/push:
+    post:
+      tags: [Sync]
+      summary: Pousser les modifications locales
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entities:
+                  type: array
+                  maxItems: 1000
+                  items:
+                    type: object
+                    properties:
+                      table:
+                        type: string
+                        enum: [accounts, categories, transactions, budgets, goals, recurring]
+                      id:
+                        type: string
+                      action:
+                        type: string
+                        enum: [upsert, delete]
+                      data:
+                        type: object
+      responses:
+        '200':
+          description: Résultat du push
+
+  /reports/summary:
+    get:
+      tags: [Reports]
+      summary: Résumé financier (revenus, dépenses, par catégorie, par mois)
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Résumé financier
+
+  /fx/rates:
+    get:
+      tags: [FX]
+      summary: Taux de change
+      security: []
+      parameters:
+        - name: base
+          in: query
+          schema:
+            type: string
+            default: EUR
+      responses:
+        '200':
+          description: Taux de change
+
+  /users/export:
+    get:
+      tags: [Users]
+      summary: Export complet des données (RGPD)
+      responses:
+        '200':
+          description: Fichier JSON avec toutes les données

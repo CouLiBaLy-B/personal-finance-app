@@ -2,7 +2,11 @@
  * FinTrack Backend — Consolidated Entry Point.
  */
 import "dotenv/config";
+import { initSentry, Sentry } from "./lib/sentry.js";
+initSentry(); // Must be first!
+
 import express from "express";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import helmet from "helmet";
 import { ensureJwtSecret } from "./lib/jwt.js";
@@ -47,7 +51,8 @@ app.use(
 // Rate limiting
 app.use(globalLimiter);
 
-// Body parsing
+// Cookie & body parsing
+app.use(cookieParser());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -55,17 +60,50 @@ app.use(express.urlencoded({ extended: true }));
 app.use(httpLogger);
 
 // ============ Health check ============
-app.get("/health", (_req, res) => {
-  res.json({
-    status: "ok",
+app.get("/health", async (_req, res) => {
+  let dbOk = false;
+  try {
+    const { prisma } = await import("./lib/prisma.js");
+    await prisma.$queryRaw`SELECT 1`;
+    dbOk = true;
+  } catch {}
+
+  const mem = process.memoryUsage();
+  res.status(dbOk ? 200 : 503).json({
+    status: dbOk ? "ok" : "degraded",
     version: "1.0.0-consolidated",
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
+    uptime: Math.round(process.uptime()),
+    database: dbOk ? "connected" : "unreachable",
+    memory: {
+      rss: Math.round(mem.rss / 1024 / 1024) + "MB",
+      heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + "MB",
+    },
   });
 });
 
+// ============ Swagger / OpenAPI ============
+if (process.env.NODE_ENV !== "production") {
+  import("swagger-ui-express").then((swaggerUi) => {
+    import("fs").then((fsm) => {
+      import("yaml").then((yaml) => {
+        try {
+          const doc = yaml.parse(fsm.readFileSync("openapi.yaml", "utf-8"));
+          app.use("/docs", swaggerUi.serve, swaggerUi.setup(doc, { customSiteTitle: "FinTrack API" }));
+          logger.info("📚 Swagger UI: http://localhost:" + PORT + "/docs");
+        } catch {}
+      });
+    });
+  });
+}
+
 // ============ API Routes ============
 app.use("/api/v1", apiRouter);
+
+// ============ Sentry error handler (before our custom one) ============
+if (process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // ============ Error handler (must be last) ============
 app.use(errorHandler);

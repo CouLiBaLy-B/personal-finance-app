@@ -1,26 +1,22 @@
 /**
  * FinTrack — Couche de persistance locale (IndexedDB via Dexie)
  *
- * Conformément à l'architecture proposée, nous simulons côté client :
- *   - Le schéma PostgreSQL/Prisma (mêmes entités, mêmes contraintes)
- *   - Le mode hors-ligne natif (toute la donnée est en IndexedDB)
- *   - L'isolation par utilisateur (chaque row porte un `userId`)
- *
- * En production, un service de synchronisation enverrait ces objets
- * vers l'API REST Node/Express + Prisma + PostgreSQL.
+ * v1 : schéma initial
+ * v2 : ajout updatedAt + syncStatus pour sync bidirectionnelle
  */
 
 import Dexie, { type Table } from "dexie";
 
 // ---------- Types métier ----------
 export type AccountType = "checking" | "saving" | "cash" | "card";
+export type SyncStatus = "local" | "synced" | "pending" | "conflict";
 
 export interface User {
   id: string;
   email: string;
   passwordHash: string;
   fullName: string;
-  baseCurrency: string; // ISO-4217 (EUR par défaut)
+  baseCurrency: string;
   createdAt: number;
 }
 
@@ -32,17 +28,21 @@ export interface Account {
   currency: string;
   initialBalance: number;
   createdAt: number;
+  updatedAt?: number;
+  syncStatus?: SyncStatus;
 }
 
 export interface Category {
   id: string;
   userId: string;
   label: string;
-  color: string; // hex
-  icon: string; // emoji
+  color: string;
+  icon: string;
   kind: "expense" | "income";
-  parentId?: string | null; // null = catégorie racine, sinon sous-catégorie
+  parentId?: string | null;
   createdAt: number;
+  updatedAt?: number;
+  syncStatus?: SyncStatus;
 }
 
 export interface Transaction {
@@ -50,14 +50,16 @@ export interface Transaction {
   userId: string;
   accountId: string;
   categoryId: string;
-  amount: number; // toujours positif
+  amount: number;
   type: "expense" | "income" | "transfer";
   currency: string;
-  date: number; // timestamp
+  date: number;
   description: string;
   recurringId?: string | null;
   goalId?: string | null;
   createdAt: number;
+  updatedAt?: number;
+  syncStatus?: SyncStatus;
 }
 
 export interface Budget {
@@ -65,9 +67,11 @@ export interface Budget {
   userId: string;
   categoryId: string;
   limit: number;
-  month: string; // format YYYY-MM
-  alertThreshold: number; // pourcentage (ex: 80 = alerte à 80%)
+  month: string;
+  alertThreshold: number;
   createdAt: number;
+  updatedAt?: number;
+  syncStatus?: SyncStatus;
 }
 
 export interface Goal {
@@ -80,6 +84,8 @@ export interface Goal {
   color: string;
   icon: string;
   createdAt: number;
+  updatedAt?: number;
+  syncStatus?: SyncStatus;
 }
 
 export interface RecurringTransaction {
@@ -95,13 +101,26 @@ export interface RecurringTransaction {
   nextDate: number;
   endDate?: number | null;
   createdAt: number;
+  updatedAt?: number;
+  syncStatus?: SyncStatus;
 }
 
 export interface Session {
-  id: string; // toujours "current"
+  id: string;
   userId: string;
-  token: string; // JWT simulé
+  token: string;
   createdAt: number;
+}
+
+/** Pending sync operations for offline queue */
+export interface SyncQueueItem {
+  id: string;
+  table: string;
+  entityId: string;
+  action: "upsert" | "delete";
+  payload: Record<string, unknown>;
+  createdAt: number;
+  retries: number;
 }
 
 // ---------- Base Dexie ----------
@@ -114,9 +133,12 @@ class FinTrackDB extends Dexie {
   goals!: Table<Goal, string>;
   recurring!: Table<RecurringTransaction, string>;
   sessions!: Table<Session, string>;
+  syncQueue!: Table<SyncQueueItem, string>;
 
   constructor() {
     super("fintrack-db");
+
+    // v1 — original schema
     this.version(1).stores({
       users: "id, &email",
       accounts: "id, userId, type",
@@ -126,6 +148,31 @@ class FinTrackDB extends Dexie {
       goals: "id, userId",
       recurring: "id, userId, nextDate",
       sessions: "id, userId",
+    });
+
+    // v2 — add sync support: updatedAt index + syncQueue table
+    this.version(2).stores({
+      users: "id, &email",
+      accounts: "id, userId, type, updatedAt, syncStatus",
+      categories: "id, userId, parentId, kind, updatedAt, syncStatus",
+      transactions: "id, userId, accountId, categoryId, date, type, updatedAt, syncStatus",
+      budgets: "id, userId, categoryId, month, updatedAt, syncStatus",
+      goals: "id, userId, updatedAt, syncStatus",
+      recurring: "id, userId, nextDate, updatedAt, syncStatus",
+      sessions: "id, userId",
+      syncQueue: "id, table, entityId, createdAt",
+    }).upgrade((tx) => {
+      // Backfill updatedAt & syncStatus on existing records
+      const now = Date.now();
+      const tables = ["accounts", "categories", "transactions", "budgets", "goals", "recurring"] as const;
+      return Promise.all(
+        tables.map((t) =>
+          (tx.table(t) as any).toCollection().modify((record: any) => {
+            if (!record.updatedAt) record.updatedAt = record.createdAt ?? now;
+            if (!record.syncStatus) record.syncStatus = "local";
+          })
+        )
+      );
     });
   }
 }

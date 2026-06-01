@@ -1,0 +1,88 @@
+version: "3.9"
+
+# ============================================================
+# FinTrack — Production Stack with TLS (Traefik)
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# ============================================================
+
+services:
+  # ---------- Reverse Proxy (TLS) ----------
+  traefik:
+    image: traefik:v3.0
+    container_name: fintrack-traefik
+    restart: unless-stopped
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@fintrack.app}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - fintrack-letsencrypt:/letsencrypt
+    networks:
+      - fintrack
+
+  # ---------- Backend (add Traefik labels) ----------
+  backend:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`${DOMAIN:-fintrack.local}`) && (PathPrefix(`/api`) || PathPrefix(`/health`))"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.api.loadbalancer.server.port=4000"
+    ports: []  # Remove direct port exposure
+
+  # ---------- Frontend (add Traefik labels) ----------
+  frontend:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`${DOMAIN:-fintrack.local}`)"
+      - "traefik.http.routers.web.entrypoints=websecure"
+      - "traefik.http.routers.web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.web.loadbalancer.server.port=80"
+    ports: []  # Remove direct port exposure
+
+  # ---------- PostgreSQL Backup (cron) ----------
+  backup:
+    image: postgres:16-alpine
+    container_name: fintrack-backup
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER:-fintrack}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-fintrack_pwd}
+      PGDATABASE: ${POSTGRES_DB:-fintrack}
+    volumes:
+      - fintrack-backups:/backups
+    networks:
+      - fintrack
+    entrypoint: /bin/sh
+    command: >
+      -c "
+      while true; do
+        TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
+        echo \"[$$TIMESTAMP] Starting backup...\"
+        pg_dump -Fc > /backups/fintrack_$$TIMESTAMP.dump
+        echo \"[$$TIMESTAMP] Backup complete: fintrack_$$TIMESTAMP.dump\"
+        # Keep only last 30 backups
+        ls -t /backups/fintrack_*.dump | tail -n +31 | xargs rm -f 2>/dev/null
+        echo \"Next backup in 6 hours...\"
+        sleep 21600
+      done
+      "
+
+volumes:
+  fintrack-letsencrypt:
+  fintrack-backups:

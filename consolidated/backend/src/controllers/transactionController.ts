@@ -85,12 +85,12 @@ export async function create(req: Request, res: Response, next: NextFunction) {
       },
     });
 
-    // Update goal currentAmount if linked
-    if (goalId && type === "income") {
+    // Atomic increment goal currentAmount if linked
+    if (goalId && (type === "income" || type === "transfer")) {
       await prisma.goal.update({
         where: { id: goalId },
         data: { currentAmount: { increment: amount } },
-      });
+      }).catch(() => {}); // Goal may not exist — non-blocking
     }
 
     res.status(201).json({ ...tx, amount: toNumber(tx.amount) });

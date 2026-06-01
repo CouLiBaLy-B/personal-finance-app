@@ -3,21 +3,20 @@
  */
 import type { Request, Response, NextFunction } from "express";
 import prisma from "../lib/prisma.js";
+import { parsePagination } from "../utils/index.js";
 import { AppError } from "../middleware/errorHandler.js";
 
 /** GET /categories */
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const kind = req.query.kind as string | undefined;
-    const categories = await prisma.category.findMany({
-      where: {
-        userId: req.userId!,
-        deletedAt: null,
-        ...(kind && { kind }),
-      },
-      orderBy: { label: "asc" },
-    });
-    res.json(categories);
+    const where: any = { userId: req.userId!, deletedAt: null, ...(kind && { kind }) };
+    const { skip, take, page, limit } = parsePagination(req.query as Record<string, unknown>);
+    const [categories, total] = await Promise.all([
+      prisma.category.findMany({ where, orderBy: { label: "asc" }, skip, take }),
+      prisma.category.count({ where }),
+    ]);
+    res.json({ data: categories, total, page, limit });
   } catch (err) { next(err); }
 }
 

@@ -117,3 +117,29 @@ export const recurringCreateSchema = z.object({
 });
 
 export const recurringUpdateSchema = recurringCreateSchema.partial();
+
+// ============ Profile schemas ============
+export const profileUpdateSchema = z.object({
+  fullName: z.string().min(1).max(100).optional(),
+  baseCurrency: z.string().length(3).optional(),
+}).refine((d) => d.fullName || d.baseCurrency, {
+  message: "Au moins un champ à modifier (fullName ou baseCurrency).",
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Mot de passe actuel requis."),
+  newPassword: z.string().min(6, "Nouveau mot de passe min. 6 caractères."),
+});
+
+// ============ Sync schemas ============
+const syncEntitySchema = z.object({
+  table: z.enum(["accounts", "categories", "transactions", "budgets", "goals", "recurring"]),
+  id: z.string().min(1, "ID requis."),
+  action: z.enum(["upsert", "delete"]),
+  data: z.record(z.unknown()).default({}),
+  updatedAt: z.string().optional(),
+});
+
+export const syncPushSchema = z.object({
+  entities: z.array(syncEntitySchema).max(1000, "Maximum 1000 entités par push."),
+});

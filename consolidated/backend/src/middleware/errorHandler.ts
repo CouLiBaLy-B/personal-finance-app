@@ -3,6 +3,7 @@
  */
 import type { Request, Response, NextFunction } from "express";
 import { logger } from "../utils/logger.js";
+import { captureError } from "../lib/sentry.js";
 
 export class AppError extends Error {
   constructor(
@@ -54,6 +55,7 @@ export function errorHandler(
   }
 
   logger.error("Unhandled error:", err);
+  captureError(err, { path: _req.path, method: _req.method });
   return res.status(500).json({
     error: "Erreur interne du serveur.",
     ...(process.env.NODE_ENV === "development" && {
